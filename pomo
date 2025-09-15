@@ -1,0 +1,347 @@
+#!/bin/bash
+
+# File for storing sessions
+DATA_FILE="$HOME/Documents/.pomodoro_sessions"
+
+# Colors
+GREEN="\e[32m"
+RED="\e[31m"
+BLUE="\e[34m"
+BLACK="\e[30m"
+YELLOW="\e[33m"
+MAGENTA="\e[35m"
+CYAN="\e[36m"
+LIGHT_GRAY="\e[37m"
+GRAY="\e[90m"
+LIGHT_RED="\e[91m"
+LIGHT_GREEN="\e[92m"
+LIGHT_YELLOW="\e[93m"
+LIGHT_BLUE="\e[94m"
+LIGHT_MAGENTA="\e[95m"
+LIGHT_CYAN="\e[96m"
+RESET="\e[0m"
+BOLD="\e[1m"
+FAINT="\e[2m"
+ITALIC="\e[3m"
+UNDERLINED="\e[4m"
+
+# Function to save the current session status
+save_session() {
+    if [ -z "$TAG" ]; then return; fi
+    # Remove existing entry for this tag
+    if [ -f "$DATA_FILE" ]; then
+        grep -v "^$TAG:" "$DATA_FILE" > /tmp/pomodoro_tmp
+        mv /tmp/pomodoro_tmp "$DATA_FILE"
+    fi
+    # Append new status
+    echo -n "$TAG:" >> "$DATA_FILE"
+    for ((i=0; i<NUM_POM; i++)); do
+        if [ $i -gt 0 ]; then echo -n "," >> "$DATA_FILE"; fi
+        echo -n "${STATUS[$i]}" >> "$DATA_FILE"
+    done
+    echo "" >> "$DATA_FILE"
+}
+
+# Function to load session status
+load_session() {
+    if [ ! -f "$DATA_FILE" ]; then
+        echo "No session found for \"$TAG\""
+        exit 1
+    fi
+    LINE=$(grep "^$TAG:" "$DATA_FILE")
+    if [ -z "$LINE" ]; then
+        echo "No session found for \"$TAG\""
+        exit 1
+    fi
+    VALS=${LINE#*:}
+    IFS=',' read -ra ARR <<< "$VALS"
+    for ((i=0; i<${#ARR[@]} && i<NUM_POM; i++)); do
+        STATUS[$i]=${ARR[$i]}
+    done
+    # Find the first incomplete pomodoro
+    for ((i=0; i<NUM_POM; i++)); do
+        if [ ${STATUS[$i]} -eq 0 ]; then
+            CURRENT=$i
+            break
+        fi
+    done
+}
+
+# Function to remove session
+remove_session() {
+    if [ -z "$TAG" ]; then
+        echo "Error: tag is required for -rm/--remove"
+        exit 1
+    fi
+    if [ -f "$DATA_FILE" ]; then
+        grep -v "^$TAG:" "$DATA_FILE" > /tmp/pomodoro_tmp
+        mv /tmp/pomodoro_tmp "$DATA_FILE"
+        echo "Session \"$TAG\" removed"
+    else
+        echo "No session found for \"$TAG\""
+    fi
+    exit 0
+}
+
+# Trap for Ctrl+C to save
+trap 'save_session; exit' INT TERM
+
+# Parse arguments
+TAG=""
+TIME_MIN=25
+NUM_POM=4
+MODE="run"
+SHOW_SESSION=""
+SHOW_LIST=false
+RECONNECT=false
+REMOVE=false
+SOUND_FILE="/home/deanr/.local/bin/SoundFiles/startup.mov"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            echo ""
+            echo "pomo: a lightweight pomodoro timer in your terminal."
+            echo "USAGE: pomo [TAG].. [OPTIONS].."
+            echo "─────────────────────────────────────────────────────────"
+            echo "-t, --tag              Tag name for the current session."
+            echo "-s, --session          Shows progress of provided session."
+            echo "-l, --list             lists all known sessions."
+            echo "-d, --duration         Change the default duration (25 minutes) to a custom value (in minutes)"
+            echo "-p, --pomodoros        Change the default value (4) of the amount of times you want to repeat the timer."
+            echo "-r, --reconnect        Reconnect to a stopped session."
+            echo "-rm, --remove          Remove a session from the database."
+            exit
+            ;;
+        -t|--tag)
+            TAG="${2//\"}" # Remove quotes from tag
+            shift 2
+            ;;
+        -s|--session)
+            SHOW_SESSION="${2//\"}" # Remove quotes from session tag
+            MODE="display"
+            shift 2
+            ;;
+        -l|--list)
+            SHOW_LIST=true
+            MODE="list"
+            shift
+            ;;
+        -d|--duration)
+            TIME_MIN="$2"
+            shift 2
+            ;;
+        -p|--pomodoros)
+            NUM_POM="$2"
+            shift 2
+            ;;
+        -r|--reconnect)
+            RECONNECT=true
+            TAG="${2//\"}" # Remove quotes from tag
+            shift 2
+            ;;
+        -rm|--remove)
+            REMOVE=true
+            TAG="${2//\"}" # Remove quotes from tag
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Handle remove mode
+if [ "$REMOVE" = true ]; then
+    remove_session
+fi
+
+# Handle display mode
+if [ "$MODE" = "display" ]; then
+    if [ -z "$SHOW_SESSION" ]; then
+        echo "Error: tag is required for -s/--session"
+        exit 1
+    fi
+    if [ ! -f "$DATA_FILE" ]; then
+        echo "No session found for \"$SHOW_SESSION\""
+        exit 0
+    fi
+    LINE=$(grep "^$SHOW_SESSION:" "$DATA_FILE")
+    if [ -z "$LINE" ]; then
+        echo "No session found for \"$SHOW_SESSION\""
+        exit 0
+    fi
+    VALS=${LINE#*:}
+    echo -n -e "${BLUE}\"$SHOW_SESSION\"${RESET}: ["
+    FIRST=1
+    IFS=',' read -ra ARR <<< "$VALS"
+    for V in "${ARR[@]}"; do
+        if [ $FIRST -eq 0 ]; then echo -n ", "; fi
+        if [ "$V" = "1" ]; then
+            echo -n -e "${GREEN}X${RESET}"
+        else
+            echo -n -e "${RED}X${RESET}"
+        fi
+        FIRST=0
+    done
+    echo "]"
+    exit 0
+fi
+
+# Handle list mode
+if [ "$SHOW_LIST" = true ]; then
+    if [ ! -f "$DATA_FILE" ]; then
+        echo "No pomodoro sessions found."
+        exit 0
+    fi
+    while IFS= read -r LINE; do
+        if [ -z "$LINE" ]; then continue; fi
+        STAG=${LINE%%:*}
+        VALS=${LINE#*:}
+        echo -n -e "${BLUE}\"$STAG\"${RESET}: ["
+        FIRST=1
+        IFS=',' read -ra ARR <<< "$VALS"
+        for V in "${ARR[@]}"; do
+            if [ $FIRST -eq 0 ]; then echo -n ", "; fi
+            if [ "$V" = "1" ]; then
+                echo -n -e "${GREEN}X${RESET}"
+            else
+                echo -n -e "${RED}X${RESET}"
+            fi
+            FIRST=0
+        done
+        echo "]"
+    done < "$DATA_FILE"
+    exit 0
+fi
+
+# Run mode
+if [ -z "$TAG" ]; then
+    echo "Error: tag is required to run a session."
+    exit 1
+fi
+
+# Initialize status array
+declare -a STATUS
+for ((i=0; i<NUM_POM; i++)); do
+    STATUS[$i]=0
+done
+CURRENT=0
+
+# Load existing session if reconnecting
+if [ "$RECONNECT" = true ]; then
+    load_session
+fi
+
+# Run the pomodoros
+for ((; CURRENT < NUM_POM; CURRENT++)); do
+    # Skip completed pomodoros
+    if [ ${STATUS[$CURRENT]} -eq 1 ]; then
+        continue
+    fi
+    TIME_LEFT=$((TIME_MIN * 60))
+    PAUSED=0
+    COMPLETED=0
+    TAG_WIDTH=20
+    MSG_WIDTH=48
+    TIMER_STATE="RUNNING"
+
+    while [ $TIME_LEFT -gt 0 ] || [ $PAUSED -eq 1 ]; do
+        # Clear screen
+        printf "\e[2J\e[H"
+
+        if [ $PAUSED -eq 1 ]; then
+            BORDER_COLOR=$RED
+            MSG="Paused"
+            TIMER_STATE="PAUSED ─"
+        else
+            BORDER_COLOR=$GREEN
+            MSG=""
+            TIMER_STATE="RUNNING "
+        fi
+
+        # Truncate tag if too long
+        if (( ${#TAG} > TAG_WIDTH )); then
+            TAG="${TAG:0:$((TAG_WIDTH - 3))}..."  # Add ellipsis if needed
+        fi
+
+        # Calculate tag padding
+        TAG_PADDING=$(( TAG_WIDTH - ${#TAG} ))
+        (( TAG_PADDING < 0 )) && TAG_PADDING=0
+
+        # Truncate message if too long
+        if (( ${#MSG} > MSG_WIDTH )); then
+            MSG="${MSG:0:$((MSG_WIDTH - 3))}..."  # Add ellipsis if needed
+        fi
+
+        # Calculate message padding
+        MSG_PADDING=$(( MSG_WIDTH - ${#MSG} ))
+        (( MSG_PADDING < 0 )) && MSG_PADDING=0
+
+        # Time formatting
+        MINS=$(printf "%02d" $((TIME_LEFT / 60)))
+        SECS=$(printf "%02d" $((TIME_LEFT % 60)))
+
+        # Draw box
+        echo -e "${BORDER_COLOR}┌──── Pomodoro - ${TIMER_STATE}─────────────────────────┐${RESET}"
+        echo -e "${BORDER_COLOR}│${RESET} Pomodoros completed: [$CURRENT/$NUM_POM] ${BLUE}$TAG$(printf '%-*s' "$TAG_PADDING" '') ${BORDER_COLOR}│${RESET}"
+        echo -e "${BORDER_COLOR}│${RESET} Time left: $MINS:$SECS$(printf '%-31s' '') ${BORDER_COLOR}│${RESET}"
+        echo -e "${BORDER_COLOR}│${RESET} $MSG$(printf '%-*s' "$MSG_PADDING" '')${BORDER_COLOR}│${RESET}"
+        echo -e "${BORDER_COLOR}└─────────────────────────────────────────────────┘${RESET}"
+        echo "Press p to pause/resume, q to quit this pomodoro"
+
+        if [ $PAUSED -eq 1 ]; then
+            # Wait for key press
+            read -n 1 -s KEY
+            if [ "$KEY" = "p" ]; then
+                PAUSED=0
+            elif [ "$KEY" = "q" ]; then
+                exit
+            fi
+        else
+            # Read with timeout
+            read -t 1 -n 1 -s KEY
+            if [ "$KEY" = "p" ]; then
+                PAUSED=1
+            elif [ "$KEY" = "q" ]; then
+                exit
+            else
+                # Decrement if no key
+                TIME_LEFT=$((TIME_LEFT - 1))
+            fi
+        fi
+    done
+
+    if [ $TIME_LEFT -le 0 ]; then
+        COMPLETED=1
+    fi
+
+    STATUS[$CURRENT]=$COMPLETED
+
+    if [ $COMPLETED -eq 1 ]; then
+        # Display completed
+        notify-send -a "Pomodoro completed!" \
+            -r 9897 \
+            -u normal \
+            -t 2001 \
+            -h int:value:"Pomodoro [$CURRENT/$NUM_POM] completed! Take a short break."
+
+        cvlc --play-and-exit --no-video "$SOUND_FILE"
+        printf "\e[2J\e[H"
+        BORDER_COLOR=$RED
+        echo -e "${BORDER_COLOR}┌──── Pomodoro - COMPLETE ────────────────────────┐${RESET}"
+        echo -e "${BORDER_COLOR}│${RESET} Pomodoros completed: [$CURRENT/$NUM_POM] ${BLUE}$TAG$(printf '%-*s' "$TAG_PADDING" '') ${BORDER_COLOR}│${RESET}"
+        echo -e "${BORDER_COLOR}│${RESET} Time left: 00:00$(printf '%-32s' '')${BORDER_COLOR}│${RESET}"
+        echo -e "${BORDER_COLOR}│${RESET} Completed!$(printf '%-38s' '')${BORDER_COLOR}│${RESET}"
+        echo -e "${BORDER_COLOR}└─────────────────────────────────────────────────┘${RESET}"
+        echo "Press q to quit the session, any other key to continue"
+        read -n 1 -s KEY
+        if [ "$KEY" = "q" ]; then
+            exit
+        fi
+    fi
+done
+
+# Save at end
+save_session
