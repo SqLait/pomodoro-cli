@@ -1,1 +1,22 @@
 #+TITLE: Pomo
+#+AUTHOR: SqLait
+
+*Pomo* is a lightweight and customisable TTY pomodoro timer for Linux Mac BSD and Windows (git bash). It's written in pure bash, can track your progress and has a visually appealing TUI (take that GUI designers).
+
+* Motive
+During my internship I started to use the pomodoro technique for my work hours. The problem was is that there was not really a tool that would fit my niche.
+The web versions required WiFi and overall felt overkill for what I really wanted to do, and existing CLIs did not have the features I cared about nor were customisable to change the timer in an easy manner.
+
+Thus I recalled the age old saying:
+#+BEGIN_QUOTE
+If you want a product that checks all your boxes, you have to do it yourself.
+#+END_QUOTE
+
+* Installation
+#+begin_src shell
+git clone https://github.com/SqLait/pomodoro-cli.git
+cd pomodoro-cli
+
+# copy into a $PATH location
+cp pomo ~/.local/bin
+#+end_src
