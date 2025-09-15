@@ -96,6 +96,7 @@ SHOW_LIST=false
 RECONNECT=false
 REMOVE=false
 SOUND_FILE="/home/deanr/.local/bin/SoundFiles/startup.mov"
+NO_SAVE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -297,6 +298,7 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
             if [ "$KEY" = "p" ]; then
                 PAUSED=0
             elif [ "$KEY" = "q" ]; then
+                save_session
                 exit
             fi
         else
@@ -305,6 +307,7 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
             if [ "$KEY" = "p" ]; then
                 PAUSED=1
             elif [ "$KEY" = "q" ]; then
+                save_session
                 exit
             else
                 # Decrement if no key
@@ -338,6 +341,7 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
         echo "Press q to quit the session, any other key to continue"
         read -n 1 -s KEY
         if [ "$KEY" = "q" ]; then
+            save_session
             exit
         fi
     fi
