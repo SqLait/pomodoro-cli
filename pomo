@@ -95,7 +95,7 @@ SHOW_SESSION=""
 SHOW_LIST=false
 RECONNECT=false
 REMOVE=false
-SOUND_FILE="/home/deanr/.local/bin/SoundFiles/startup.mov"
+SOUND_FILE=""
 NO_SAVE=false
 
 while [[ $# -gt 0 ]]; do
@@ -105,13 +105,15 @@ while [[ $# -gt 0 ]]; do
             echo "pomo: a lightweight pomodoro timer in your terminal."
             echo "USAGE: pomo [TAG].. [OPTIONS].."
             echo "─────────────────────────────────────────────────────────"
-            echo "-t, --tag              Tag name for the current session."
-            echo "-s, --session          Shows progress of provided session."
-            echo "-l, --list             lists all known sessions."
-            echo "-d, --duration         Change the default duration (25 minutes) to a custom value (in minutes)"
-            echo "-p, --pomodoros        Change the default value (4) of the amount of times you want to repeat the timer."
-            echo "-r, --reconnect        Reconnect to a stopped session."
-            echo "-rm, --remove          Remove a session from the database."
+            echo "-t, --tag          |   Tag name for the current session."
+            echo "-s, --session      |   Shows progress of provided session."
+            echo "-l, --list         |   lists all known sessions."
+            echo "-d, --duration     |   Change the default duration (25 minutes) to a custom value (in minutes)"
+            echo "-p, --pomodoros    |   Change the default value (4) of the amount of times you want to repeat the timer."
+            echo "-r, --reconnect    |   Reconnect to a stopped session."
+            echo "-rm, --remove      |   Remove a session from the database."
+            echo "-ns, --no-save     |   Will not save the initialised session."
+            echo "-a, --alarm        |   Audio file that will when the time has passed."
             exit
             ;;
         -t|--tag)
@@ -144,6 +146,14 @@ while [[ $# -gt 0 ]]; do
         -rm|--remove)
             REMOVE=true
             TAG="${2//\"}" # Remove quotes from tag
+            shift 2
+            ;;
+        -ns|--no-save)
+            NO_SAVE=true
+            shift
+            ;;
+        -a|--alarm)
+            SOUND_FILE="${2//\"}"
             shift 2
             ;;
         *)
@@ -298,7 +308,9 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
             if [ "$KEY" = "p" ]; then
                 PAUSED=0
             elif [ "$KEY" = "q" ]; then
-                save_session
+                if [ "$NO_SAVE" = false ]; then
+                    save_session
+                fi
                 exit
             fi
         else
@@ -307,7 +319,9 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
             if [ "$KEY" = "p" ]; then
                 PAUSED=1
             elif [ "$KEY" = "q" ]; then
-                save_session
+                if [ "$NO_SAVE" = false ]; then
+                    save_session
+                fi
                 exit
             else
                 # Decrement if no key
@@ -330,7 +344,10 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
             -t 2001 \
             -h int:value:"Pomodoro [$CURRENT/$NUM_POM] completed! Take a short break."
 
-        cvlc --play-and-exit --no-video "$SOUND_FILE"
+        if [ "$SOUND_FILE" != "" ]; then
+            cvlc --play-and-exit --no-video "$SOUND_FILE"
+        fi
+
         printf "\e[2J\e[H"
         BORDER_COLOR=$RED
         echo -e "${BORDER_COLOR}┌──── Pomodoro - COMPLETE ────────────────────────┐${RESET}"
@@ -341,7 +358,9 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
         echo "Press q to quit the session, any other key to continue"
         read -n 1 -s KEY
         if [ "$KEY" = "q" ]; then
-            save_session
+            if [ "$NO_SAVE" = false ]; then
+                save_session
+            fi
             exit
         fi
     fi
