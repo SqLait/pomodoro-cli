@@ -1,7 +1,7 @@
 #+TITLE: Pomo
 #+AUTHOR: SqLait
 
-*Pomo* is a lightweight and customisable TTY pomodoro timer for Linux Mac BSD and Windows (git bash). It's written in pure bash, can track your progress and has a visually appealing TUI (take that GUI designers).
+*Pomo* is a lightweight and customisable TTY pomodoro timer for Linux Mac and BSD. It's written in pure bash, can track your progress and has a visually appealing TUI (take that GUI designers).
 
 * Motive
 During my internship I started to use the pomodoro technique for my work hours. The problem was is that there was not really a tool that would fit my niche.
@@ -20,3 +20,29 @@ cd pomodoro-cli
 # copy into a $PATH location
 cp pomo ~/.local/bin
 #+end_src
+
+* Usage
+#+BEGIN_SRC
+pomo: a lightweight pomodoro timer in your terminal.
+USAGE: pomo [TAG].. [OPTIONS]..
+─────────────────────────────────────────────────────────
+-t, --tag          |   Tag name for the current session.
+-s, --session      |   Shows progress of provided session.
+-l, --list         |   lists all known sessions.
+-d, --duration     |   Change the default duration (25 minutes) to a custom value (in minutes) and m or s if you want either minutes or seconds.
+-p, --pomodoros    |   Change the default value (4) of the amount of times you want to repeat the timer.
+-r, --reconnect    |   Reconnect to a stopped session.
+-rm, --remove      |   Remove a session from the database.
+-a, --alarm        |   Audio file that will when the time has passed.
+─────────────────────────────────────────────────────────
+USAGE: pomo [TAG].. [SETTINGS]..
+─────────────────────────────────────────────────────────
+-ns, --no-save     |   Will not save the initialised session.
+#+END_SRC
+
+* Misc
+** Contribution
+All contributions to the project are welcome!
+
+** Windows support ⚠
+Momentarily there is no planned support for windows since I don't use it. But feel free to contribute if you feel like that is something important!

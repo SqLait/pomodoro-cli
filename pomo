@@ -88,7 +88,7 @@ trap 'save_session; exit' INT TERM
 
 # Parse arguments
 TAG=""
-TIME_MIN=25
+POMODORO_DURATION=25
 NUM_POM=4
 MODE="run"
 SHOW_SESSION=""
@@ -97,6 +97,7 @@ RECONNECT=false
 REMOVE=false
 SOUND_FILE=""
 NO_SAVE=false
+MIN_OR_SEC=60
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -112,8 +113,11 @@ while [[ $# -gt 0 ]]; do
             echo "-p, --pomodoros    |   Change the default value (4) of the amount of times you want to repeat the timer."
             echo "-r, --reconnect    |   Reconnect to a stopped session."
             echo "-rm, --remove      |   Remove a session from the database."
-            echo "-ns, --no-save     |   Will not save the initialised session."
             echo "-a, --alarm        |   Audio file that will when the time has passed."
+            echo "─────────────────────────────────────────────────────────"
+            echo "USAGE: pomo [TAG].. [SETTINGS].."
+            echo "─────────────────────────────────────────────────────────"
+            echo "-ns, --no-save     |   Will not save the initialised session."
             exit
             ;;
         -t|--tag)
@@ -131,7 +135,20 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -d|--duration)
-            TIME_MIN="$2"
+            case "$2" in
+                *s)
+                    MIN_OR_SEC=1
+                    POMODORO_DURATION="${2%s}"
+                    ;;
+                *m)
+                    MIN_OR_SEC=60
+                    POMODORO_DURATION="${2%m}"
+                    ;;
+                *)
+                    MIN_OR_SEC=60
+                    POMODORO_DURATION="$2"
+                    ;;
+            esac
             shift 2
             ;;
         -p|--pomodoros)
@@ -251,7 +268,7 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
     if [ ${STATUS[$CURRENT]} -eq 1 ]; then
         continue
     fi
-    TIME_LEFT=$((TIME_MIN * 60))
+    TIME_LEFT=$((POMODORO_DURATION * MIN_OR_SEC))
     PAUSED=0
     COMPLETED=0
     TAG_WIDTH=20
