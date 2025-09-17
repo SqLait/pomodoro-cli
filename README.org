@@ -26,18 +26,31 @@ cp pomo ~/.local/bin
 pomo: a lightweight pomodoro timer in your terminal.
 USAGE: pomo [TAG].. [OPTIONS]..
 ─────────────────────────────────────────────────────────
--t, --tag          |   Tag name for the current session.
--s, --session      |   Shows progress of provided session.
--l, --list         |   lists all known sessions.
--d, --duration     |   Change the default duration (25 minutes) to a custom value (in minutes) and m or s if you want either minutes or seconds.
--p, --pomodoros    |   Change the default value (4) of the amount of times you want to repeat the timer.
--r, --reconnect    |   Reconnect to a stopped session.
--rm, --remove      |   Remove a session from the database.
--a, --alarm        |   Audio file that will when the time has passed.
+-t, --tag            |   Tag name for the current session.
+-s, --session        |   Shows progress of provided session.
+-l, --list           |   lists all known sessions.
+-d, --duration       |   Change the default duration (25 minutes) to a custom value (in minutes) and m or s if you want either minutes or seconds.
+-p, --pomodoros      |   Change the default value (4) of the amount of times you want to repeat the timer.
+-r, --reconnect      |   Reconnect to a stopped session.
+-rm, --remove        |   Remove a session from the database.
+-a, --alarm          |   Audio file that will when the time has passed.
+-cc, --create-config |   Creates a config file at $HOME/.config/pomo.
+
 ─────────────────────────────────────────────────────────
 USAGE: pomo [TAG].. [SETTINGS]..
 ─────────────────────────────────────────────────────────
 -ns, --no-save     |   Will not save the initialised session.
+#+END_SRC
+
+* Customisation
+When you have used the =-cc= or =--create-config= command, a =config.txt= file will be created at $HOME/.config/pomo.
+
+#+BEGIN_SRC
+border_color = green
+border_pause_color = cyan
+border_complete_color = red
+tag_color = blue
+text_color = white
 #+END_SRC
 
 * Misc

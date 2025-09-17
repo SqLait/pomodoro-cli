@@ -20,6 +20,8 @@ LIGHT_YELLOW="\e[93m"
 LIGHT_BLUE="\e[94m"
 LIGHT_MAGENTA="\e[95m"
 LIGHT_CYAN="\e[96m"
+
+# Special colors
 RESET="\e[0m"
 BOLD="\e[1m"
 FAINT="\e[2m"
@@ -38,6 +40,13 @@ REMOVE=false
 SOUND_FILE=""
 NO_SAVE=false
 MIN_OR_SEC=60
+
+BORDER_COLOR=""
+BORDER_PAUSE_COLOR=""
+BORDER_COMPLETE_COLOR=""
+TEXT_COLOR=""
+TAG_COLOR=""
+
 
 create_config_file() {
     if [ ! -d "$HOME/.config/pomo" ]; then
@@ -104,13 +113,49 @@ remove_session() {
     exit 0
 }
 
-load_config() {
-    BORDER_COLOUR=""
-    TEXT_COLOUR=""
-    TAG_COLOUR=""
-    LINE=$(grep "^$THEME:" "$CONFIG_FILE")
+resolve_config_color() {
+    local color_name="$1"
+    local fallback_color="$2"
+    case "${color_name,,}" in
+        black) echo -e "$BLACK" ;;
+        red) echo -e "$RED" ;;
+        green) echo -e "$GREEN" ;;
+        yellow) echo -e "$YELLOW" ;;
+        blue) echo -e "$BLUE" ;;
+        magenta) echo -e "$MAGENTA" ;;
+        cyan) echo -e "$CYAN" ;;
+        light_gray) echo -e "$LIGHT_GRAY" ;;
+        gray) echo -e "$GRAY" ;;
+        light_red) echo -e "$LIGHT_RED" ;;
+        light_green) echo -e "$LIGHT_GREEN" ;;
+        light_yellow) echo -e "$LIGHT_YELLOW" ;;
+        light_blue) echo -e "$LIGHT_BLUE" ;;
+        light_magenta) echo -e "$LIGHT_MAGENTA" ;;
+        light_cyan) echo -e "$LIGHT_CYAN" ;;
+        white | none ) echo -e "\e[0m" ;; # No Color
+        * | "") echo -e "$fallback_color" ;; # Fallback
+    esac
 }
 
+load_config() {
+    if [ ! -d "$HOME/.config/pomo" ]; then
+        return
+    fi
+
+    local border_color=$(grep "^border_color" "$CONFIG_FILE" | awk '{print $NF}')
+    local border_pause_color=$(grep "^border_pause_color" "$CONFIG_FILE" | awk '{print $NF}')
+    local border_complete_color=$(grep "^border_complete_color" "$CONFIG_FILE" | awk '{print $NF}')
+    local text_color=$(grep "^text_color" "$CONFIG_FILE" | awk '{print $NF}')
+    local tag_color=$(grep "^tag_color" "$CONFIG_FILE" | awk '{print $NF}')
+
+    BORDER_COLOR=$(resolve_config_color "$border_color" $GREEN)
+    BORDER_PAUSE_COLOR=$(resolve_config_color "$border_pause_color" $RED)
+    BORDER_COMPLETE_COLOR=$(resolve_config_color "$border_complete_color" $RED)
+    TEXT_COLOR=$(resolve_config_color "$text_color" $RESET)
+    TAG_COLOR=$(resolve_config_color "$tag_color" $BLUE)
+}
+
+load_config
 # Trap for Ctrl+C to save
 trap 'save_session; exit' INT TERM
 
@@ -121,14 +166,15 @@ while [[ $# -gt 0 ]]; do
             echo "pomo: a lightweight pomodoro timer in your terminal."
             echo "USAGE: pomo [TAG].. [OPTIONS].."
             echo "─────────────────────────────────────────────────────────"
-            echo "-t, --tag          |   Tag name for the current session."
-            echo "-s, --session      |   Shows progress of provided session."
-            echo "-l, --list         |   lists all known sessions."
-            echo "-d, --duration     |   Change the default duration (25 minutes) to a custom value (in minutes)"
-            echo "-p, --pomodoros    |   Change the default value (4) of the amount of times you want to repeat the timer."
-            echo "-r, --reconnect    |   Reconnect to a stopped session."
-            echo "-rm, --remove      |   Remove a session from the database."
-            echo "-a, --alarm        |   Audio file that will when the time has passed."
+            echo "-t, --tag             |   Tag name for the current session."
+            echo "-s, --session         |   Shows progress of provided session."
+            echo "-l, --list            |   lists all known sessions."
+            echo "-d, --duration        |   Change the default duration (25 minutes) to a custom value (in minutes)"
+            echo "-p, --pomodoros       |   Change the default value (4) of the amount of times you want to repeat the timer."
+            echo "-r, --reconnect       |   Reconnect to a stopped session."
+            echo "-rm, --remove         |   Remove a session from the database."
+            echo "-a, --alarm           |   Audio file that will when the time has passed."
+            echo "-cc, --create-config  |   Creates a config file at $HOME/.config/pomo."
             echo "─────────────────────────────────────────────────────────"
             echo "USAGE: pomo [TAG].. [SETTINGS].."
             echo "─────────────────────────────────────────────────────────"
@@ -301,11 +347,11 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
         printf "\e[2J\e[H"
 
         if [ $PAUSED -eq 1 ]; then
-            BORDER_COLOUR=$RED
+            #BORDER_COLOR=$RED
             MSG="Paused"
             TIMER_STATE="PAUSED ─"
         else
-            BORDER_COLOUR=$GREEN
+            #BORDER_COLOR=$GREEN
             MSG=""
             TIMER_STATE="RUNNING "
         fi
@@ -332,13 +378,22 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
         MINS=$(printf "%02d" $((TIME_LEFT / 60)))
         SECS=$(printf "%02d" $((TIME_LEFT % 60)))
 
-        # Draw box
-        echo -e "${BORDER_COLOUR}┌──── Pomodoro - ${TIMER_STATE}─────────────────────────┐${RESET}"
-        echo -e "${BORDER_COLOUR}│${RESET} Pomodoros completed: [$CURRENT/$NUM_POM] ${BLUE}$TAG$(printf '%-*s' "$TAG_PADDING" '') ${BORDER_COLOUR}│${RESET}"
-        echo -e "${BORDER_COLOUR}│${RESET} Time left: $MINS:$SECS$(printf '%-31s' '') ${BORDER_COLOUR}│${RESET}"
-        echo -e "${BORDER_COLOUR}│${RESET} $MSG$(printf '%-*s' "$MSG_PADDING" '')${BORDER_COLOUR}│${RESET}"
-        echo -e "${BORDER_COLOUR}└─────────────────────────────────────────────────┘${RESET}"
-        echo "Press p to pause/resume, q to quit this pomodoro"
+
+        if [ "$MSG" = "" ]; then
+            echo -e "${BORDER_COLOR}┌──── Pomodoro - ${TIMER_STATE}─────────────────────────┐${RESET}"
+            echo -e "${BORDER_COLOR}│${TEXT_COLOR} Pomodoros completed: [$CURRENT/$NUM_POM] ${TAG_COLOR}$TAG$(printf '%-*s' "$TAG_PADDING" '') ${BORDER_COLOR}│${RESET}"
+            echo -e "${BORDER_COLOR}│${TEXT_COLOR} Time left: $MINS:$SECS$(printf '%-31s' '') ${BORDER_COLOR}│${RESET}"
+            echo -e "${BORDER_COLOR}│${TEXT_COLOR} $MSG$(printf '%-*s' "$MSG_PADDING" '')${BORDER_COLOR}│${RESET}"
+            echo -e "${BORDER_COLOR}└─────────────────────────────────────────────────┘${RESET}"
+            echo -e "Press ${BORDER_PAUSE_COLOR}p${RESET} to pause/resume, ${BORDER_COMPLETE_COLOR}q${RESET} to quit this pomodoro"
+        elif [ "$MSG" = "Paused" ]; then
+            echo -e "${BORDER_PAUSE_COLOR}┌──── Pomodoro - ${TIMER_STATE}─────────────────────────┐${RESET}"
+            echo -e "${BORDER_PAUSE_COLOR}│${TEXT_COLOR} Pomodoros completed: [$CURRENT/$NUM_POM] ${TAG_COLOR}$TAG$(printf '%-*s' "$TAG_PADDING" '') ${BORDER_PAUSE_COLOR}│${RESET}"
+            echo -e "${BORDER_PAUSE_COLOR}│${TEXT_COLOR} Time left: $MINS:$SECS$(printf '%-31s' '') ${BORDER_PAUSE_COLOR}│${RESET}"
+            echo -e "${BORDER_PAUSE_COLOR}│${TEXT_COLOR} $MSG$(printf '%-*s' "$MSG_PADDING" '')${BORDER_PAUSE_COLOR}│${RESET}"
+            echo -e "${BORDER_PAUSE_COLOR}└─────────────────────────────────────────────────┘${RESET}"
+            echo -e "Press ${BORDER_PAUSE_COLOR}p${RESET} to pause/resume, ${BORDER_COMPLETE_COLOR}q${RESET} to quit this pomodoro"
+        fi
 
         if [ $PAUSED -eq 1 ]; then
             # Wait for key press
@@ -387,13 +442,13 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
         fi
 
         printf "\e[2J\e[H"
-        BORDER_COLOUR=$RED
-        echo -e "${BORDER_COLOUR}┌──── Pomodoro - COMPLETE ────────────────────────┐${RESET}"
-        echo -e "${BORDER_COLOUR}│${RESET} Pomodoros completed: [$CURRENT/$NUM_POM] ${BLUE}$TAG$(printf '%-*s' "$TAG_PADDING" '') ${BORDER_COLOUR}│${RESET}"
-        echo -e "${BORDER_COLOUR}│${RESET} Time left: 00:00$(printf '%-32s' '')${BORDER_COLOUR}│${RESET}"
-        echo -e "${BORDER_COLOUR}│${RESET} Completed!$(printf '%-38s' '')${BORDER_COLOUR}│${RESET}"
-        echo -e "${BORDER_COLOUR}└─────────────────────────────────────────────────┘${RESET}"
-        echo "Press q to quit the session, any other key to continue"
+        # BORDER_COLOR=$RED
+        echo -e "${BORDER_COMPLETE_COLOR}┌──── Pomodoro - COMPLETE ────────────────────────┐${RESET}"
+        echo -e "${BORDER_COMPLETE_COLOR}│${TEXT_COLOR} Pomodoros completed: [$CURRENT/$NUM_POM] ${TAG_COLOR}$TAG$(printf '%-*s' "$TAG_PADDING" '') ${BORDER_COMPLETE_COLOR}│${RESET}"
+        echo -e "${BORDER_COMPLETE_COLOR}│${TEXT_COLOR} Time left: 00:00$(printf '%-32s' '')${BORDER_COMPLETE_COLOR}│${RESET}"
+        echo -e "${BORDER_COMPLETE_COLOR}│${TEXT_COLOR} Completed!$(printf '%-38s' '')${BORDER_COMPLETE_COLOR}│${RESET}"
+        echo -e "${BORDER_COMPLETE_COLOR}└─────────────────────────────────────────────────┘${RESET}"
+        echo -e "Press ${BORDER_COMPLETE_COLOR}q${RESET} to quit the session, ${BORDER_COLOR}any other key${RESET} to continue"
         read -n 1 -s KEY
         if [ "$KEY" = "q" ]; then
             if [ "$NO_SAVE" = false ]; then
