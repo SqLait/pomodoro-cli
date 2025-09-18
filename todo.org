@@ -1,0 +1,14 @@
+* TODO list
+- [ ] Add pause option on break timer
+- [ ] Add options to customise clock appearance
+    - [ ] Center clock in the middle
+    - [ ] Different ASCII themes for the clock
+        - [ ] tomato clock
+        - [ ] Dino
+        - [ ] Butterfly
+    - [ ] Hide cursor
+- [ ] Multiple languages
+- [ ] Allow pomodoro to be a background process
+
+* Non confirmed TODOs
+- [ ] Port code to Luajit
