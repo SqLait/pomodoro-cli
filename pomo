@@ -460,7 +460,8 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
             -h int:value:"Pomodoro [$CURRENT/$NUM_POM] completed! Take a short break."
 
         if [ "$SOUND_FILE" != "" ]; then
-            cvlc --play-and-exit --no-video "$SOUND_FILE"
+            # Make vlc run in the background and prevent a nohup.out file being created
+            nohup cvlc --play-and-exit --no-video "$SOUND_FILE" > /dev/null 2>&1 &
         fi
 
         while [ $TIME_LEFT_PAUSE -gt 0 ] || [ $PAUSED -eq 1 ]; do
