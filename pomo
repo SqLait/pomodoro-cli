@@ -31,6 +31,7 @@ UNDERLINED="\e[4m"
 # Parse arguments
 TAG=""
 POMODORO_DURATION=25
+BREAK_DURATION=5
 NUM_POM=4
 MODE="run"
 SHOW_SESSION=""
@@ -40,13 +41,13 @@ REMOVE=false
 SOUND_FILE=""
 NO_SAVE=false
 MIN_OR_SEC=60
+MIN_OR_SEC_BREAK=60
 
 BORDER_COLOR=""
 BORDER_PAUSE_COLOR=""
 BORDER_COMPLETE_COLOR=""
 TEXT_COLOR=""
 TAG_COLOR=""
-
 
 create_config_file() {
     if [ ! -d "$HOME/.config/pomo" ]; then
@@ -212,6 +213,23 @@ while [[ $# -gt 0 ]]; do
             esac
             shift 2
             ;;
+        -b|--break)
+            case "$2" in
+                *s)
+                    MIN_OR_SEC_BREAK=1
+                    BREAK_DURATION="${2%s}"
+                    ;;
+                *m)
+                    MIN_OR_SEC_BREAK=60
+                    BREAK_DURATION="${2%m}"
+                    ;;
+                *)
+                    MIN_OR_SEC_BREAK=60
+                    BREAK_DURATION="$2"
+                    ;;
+            esac
+            shift 2
+            ;;
         -p|--pomodoros)
             NUM_POM="$2"
             shift 2
@@ -336,6 +354,7 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
         continue
     fi
     TIME_LEFT=$((POMODORO_DURATION * MIN_OR_SEC))
+    TIME_LEFT_PAUSE=$((BREAK_DURATION * MIN_OR_SEC_BREAK))
     PAUSED=0
     COMPLETED=0
     TAG_WIDTH=20
@@ -409,13 +428,16 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
         else
             # Read with timeout
             read -t 1 -n 1 -s KEY
-            if [ "$KEY" = "p" ]; then
-                PAUSED=1
-            elif [ "$KEY" = "q" ]; then
-                if [ "$NO_SAVE" = false ]; then
-                    save_session
+
+            if [ $? -eq 0 ]; then # Checks if any key has been pressed
+                if [ "$KEY" = "p" ]; then
+                    PAUSED=1
+                elif [ "$KEY" = "q" ]; then
+                    if [ "$NO_SAVE" = false ]; then
+                        save_session
+                    fi
+                    exit
                 fi
-                exit
             else
                 # Decrement if no key
                 TIME_LEFT=$((TIME_LEFT - 1))
@@ -441,21 +463,39 @@ for ((; CURRENT < NUM_POM; CURRENT++)); do
             cvlc --play-and-exit --no-video "$SOUND_FILE"
         fi
 
-        printf "\e[2J\e[H"
-        # BORDER_COLOR=$RED
-        echo -e "${BORDER_COMPLETE_COLOR}┌──── Pomodoro - COMPLETE ────────────────────────┐${RESET}"
-        echo -e "${BORDER_COMPLETE_COLOR}│${TEXT_COLOR} Pomodoros completed: [$CURRENT/$NUM_POM] ${TAG_COLOR}$TAG$(printf '%-*s' "$TAG_PADDING" '') ${BORDER_COMPLETE_COLOR}│${RESET}"
-        echo -e "${BORDER_COMPLETE_COLOR}│${TEXT_COLOR} Time left: 00:00$(printf '%-32s' '')${BORDER_COMPLETE_COLOR}│${RESET}"
-        echo -e "${BORDER_COMPLETE_COLOR}│${TEXT_COLOR} Completed!$(printf '%-38s' '')${BORDER_COMPLETE_COLOR}│${RESET}"
-        echo -e "${BORDER_COMPLETE_COLOR}└─────────────────────────────────────────────────┘${RESET}"
-        echo -e "Press ${BORDER_COMPLETE_COLOR}q${RESET} to quit the session, ${BORDER_COLOR}any other key${RESET} to continue"
-        read -n 1 -s KEY
-        if [ "$KEY" = "q" ]; then
-            if [ "$NO_SAVE" = false ]; then
-                save_session
+        while [ $TIME_LEFT_PAUSE -gt 0 ] || [ $PAUSED -eq 1 ]; do
+
+            PAUSE_MINS=$(printf "%02d" $((TIME_LEFT_PAUSE / 60)))
+            PAUSE_SECS=$(printf "%02d" $((TIME_LEFT_PAUSE % 60)))
+
+            printf "\e[2J\e[H"
+            # BORDER_COLOR=$RED
+            echo -e "${BORDER_COMPLETE_COLOR}┌──── Pomodoro - COMPLETE ────────────────────────┐${RESET}"
+            echo -e "${BORDER_COMPLETE_COLOR}│${TEXT_COLOR} Pomodoros completed: [$((CURRENT + 1))/$NUM_POM] ${TAG_COLOR}$TAG$(printf '%-*s' "$TAG_PADDING" '') ${BORDER_COMPLETE_COLOR}│${RESET}"
+            echo -e "${BORDER_COMPLETE_COLOR}│${TEXT_COLOR} Time left: 00:00$(printf '%-32s' '')${BORDER_COMPLETE_COLOR}│${RESET}"
+            echo -e "${BORDER_COMPLETE_COLOR}│${TEXT_COLOR} Completed!$(printf '%-38s' '')${BORDER_COMPLETE_COLOR}│${RESET}"
+            echo -e "${BORDER_COMPLETE_COLOR}└─────────────────────────────────────────────────┘${RESET}"
+            echo -e "Break time left: ${BORDER_COLOR}${PAUSE_MINS}:${PAUSE_SECS}${RESET}"
+            echo -e "Press ${BORDER_COMPLETE_COLOR}q${RESET} to quit the session, ${BORDER_COLOR}any other key${RESET} to continue"
+            read -t 1 -n 1 -s KEY
+            if [ $? -eq 0 ]; then # Checks if any key has been pressed
+                if [ "$KEY" = "q" ]; then
+                    if [ "$NO_SAVE" = false ]; then
+                        save_session
+                    fi
+                    exit
+                else
+                    COMPLETED=0
+                    TIME_LEFT_PAUSE=0
+                    continue
+                fi
             fi
-            exit
-        fi
+            TIME_LEFT_PAUSE=$((TIME_LEFT_PAUSE - 1))
+
+            if [ $TIME_LEFT_PAUSE -le 0 ]; then
+                COMPLETED=0
+            fi
+        done
     fi
 done
 
